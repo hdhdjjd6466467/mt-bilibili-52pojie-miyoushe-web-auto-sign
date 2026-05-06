@@ -7,6 +7,12 @@ if [[ "$SELF_PATH" == "bash" || "$SELF_PATH" == "-bash" || "$SELF_PATH" == "zsh"
 fi
 ROOT="$(cd "$(dirname "$SELF_PATH")/.." && pwd)"
 
+if [[ -x "$ROOT/runtime/python/bin/python3" ]]; then
+  export SIGNADMIN_PYTHON_BIN="$ROOT/runtime/python/bin/python3"
+elif [[ -x "$ROOT/runtime/python/python.exe" ]]; then
+  export SIGNADMIN_PYTHON_BIN="$ROOT/runtime/python/python.exe"
+fi
+
 if [[ -d "$ROOT/runtime/ms-playwright" ]]; then
   export PLAYWRIGHT_BROWSERS_PATH="$ROOT/runtime/ms-playwright"
 fi

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 source "$(cd "$(dirname "$0")" && pwd)/_env.sh"
+PYTHON_BIN="${SIGNADMIN_PYTHON_BIN:-$ROOT/.venv/bin/python}"
 
 cd "$ROOT"
-exec "$ROOT/.venv/bin/python" -m signadmin.dispatch
+exec "$PYTHON_BIN" -m signadmin.dispatch

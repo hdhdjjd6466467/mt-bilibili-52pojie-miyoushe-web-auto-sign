@@ -260,6 +260,69 @@ def _ensure_xvfb(display: str = ":1") -> str:
     return resolved
 
 
+def _node_bin() -> str:
+    for key in ("SIGNADMIN_NODE_BIN", "NODE_BIN"):
+        value = str(os.environ.get(key) or "").strip()
+        if value:
+            return value
+    return shutil.which("node") or "node"
+
+
+def _mihoyo_python_bin() -> str:
+    configured = str(os.environ.get("MIHOYO_VENV_PYTHON") or "").strip()
+    if configured:
+        return configured
+
+    portable = str(os.environ.get("SIGNADMIN_PYTHON_BIN") or "").strip()
+    if portable:
+        return portable
+
+    candidates = (
+        config.VENDOR_MIHOYO / ".venv" / "bin" / "python",
+        config.VENDOR_MIHOYO / ".venv" / "Scripts" / "python.exe",
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return sys.executable
+
+
+def _run_52pojie(env: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    retry_count = max(1, int(str(env.get("POJIE_RETRY_COUNT") or "3")))
+    retry_sleep_seconds = max(0, int(str(env.get("POJIE_RETRY_SLEEP_SECONDS") or "120")))
+    cmd = [_node_bin(), str(config.VENDOR_52 / "scripts" / "signin.mjs")]
+    output_parts: list[str] = []
+    last_result: subprocess.CompletedProcess[str] | None = None
+
+    for attempt in range(1, retry_count + 1):
+        banner = f"{datetime.now().isoformat()} [runtime] 52pojie attempt {attempt}/{retry_count}\n"
+        output_parts.append(banner)
+        last_result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(cwd),
+            timeout=900,
+            check=False,
+        )
+        output_parts.append((last_result.stdout or "") + (last_result.stderr or ""))
+        if last_result.returncode == 0:
+            break
+        if attempt < retry_count and retry_sleep_seconds:
+            time.sleep(retry_sleep_seconds)
+
+    if last_result is None:
+        raise RuntimeError("52pojie command did not execute")
+
+    return subprocess.CompletedProcess(
+        args=last_result.args,
+        returncode=last_result.returncode,
+        stdout="".join(output_parts),
+        stderr="",
+    )
+
+
 def sync_cookie_runtime(target: dict[str, Any], paths: dict[str, Path]) -> tuple[bool, str]:
     site = str(target["site"])
     site_def = SITE_DEFS.get(site, {})
@@ -269,7 +332,7 @@ def sync_cookie_runtime(target: dict[str, Any], paths: dict[str, Path]) -> tuple
 
     env = _cookie_sync_env(target, paths)
     cmd = [
-        "node",
+        _node_bin(),
         str(config.VENDOR_52 / "scripts" / "browser-cookie-sync.mjs"),
         "sync",
         str(sync_target),
@@ -288,7 +351,7 @@ def open_browser_session(target: dict[str, Any]) -> dict[str, Any]:
     env = _cookie_sync_env(target, paths)
     env["DISPLAY"] = _ensure_xvfb(env.get("DISPLAY") or ":1")
     cmd = [
-        "node",
+        _node_bin(),
         str(config.VENDOR_52 / "scripts" / "browser-cookie-sync.mjs"),
         "open",
         str(SITE_DEFS[site]["sync_target"]),
@@ -503,10 +566,10 @@ def run_target(target: dict[str, Any], trigger_type: str = "manual") -> dict[str
         cmd = [sys.executable, str(config.VENDOR_BILIBILI / "bilibili_sign.py")]
     elif site == "mihoyo":
         env["MIHOYO_CODE_ROOT"] = str(config.VENDOR_MIHOYO)
-        env["MIHOYO_VENV_PYTHON"] = str(config.VENDOR_MIHOYO / ".venv" / "bin" / "python")
+        env["MIHOYO_VENV_PYTHON"] = _mihoyo_python_bin()
         env["AutoMihoyoBBS_config_path"] = str(paths["config"])
         env["MIHOYO_USE_RUNTIME_COOKIE"] = "1" if runtime_used else "0"
-        cmd = [str(config.VENDOR_MIHOYO / "run_genshin.sh")]
+        cmd = [env["MIHOYO_VENV_PYTHON"], str(config.VENDOR_MIHOYO / "main.py")]
     elif site == "52pojie":
         env["POJIE_CODE_ROOT"] = str(config.VENDOR_52)
         env["POJIE_PROJECT_ROOT"] = str(paths["root"])
@@ -514,11 +577,22 @@ def run_target(target: dict[str, Any], trigger_type: str = "manual") -> dict[str
         env["POJIE_PYTHON_BIN"] = sys.executable
         env["POJIE_HEADLESS"] = "true"
         env["POJIE_HUMAN_MODE"] = "true"
-        cmd = [str(config.VENDOR_52 / "run-cron.sh")]
+        cmd = [_node_bin(), str(config.VENDOR_52 / "scripts" / "signin.mjs")]
     else:
         raise ValueError(f"unsupported site: {site}")
 
-    completed = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=900, check=False)
+    if site == "52pojie":
+        completed = _run_52pojie(env, paths["root"])
+    else:
+        completed = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(config.VENDOR_MIHOYO) if site == "mihoyo" else None,
+            timeout=900,
+            check=False,
+        )
     output_parts.append((completed.stdout or "") + (completed.stderr or ""))
     exit_code = int(completed.returncode)
 
@@ -526,7 +600,18 @@ def run_target(target: dict[str, Any], trigger_type: str = "manual") -> dict[str
         fallback_env = env.copy()
         fallback_env[str(SITE_DEFS[site]["runtime_flag"])] = "0"
         fallback_output = "\n[auto-sign-web] runtime failed, fallback to static cookie\n"
-        completed = subprocess.run(cmd, capture_output=True, text=True, env=fallback_env, timeout=900, check=False)
+        if site == "52pojie":
+            completed = _run_52pojie(fallback_env, paths["root"])
+        else:
+            completed = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                env=fallback_env,
+                cwd=str(config.VENDOR_MIHOYO) if site == "mihoyo" else None,
+                timeout=900,
+                check=False,
+            )
         fallback_output += (completed.stdout or "") + (completed.stderr or "")
         output_parts.append(fallback_output)
         exit_code = int(completed.returncode)
