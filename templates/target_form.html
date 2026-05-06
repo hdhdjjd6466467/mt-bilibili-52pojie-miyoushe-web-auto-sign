@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% set page_title = "编辑站点账号" if target.id else "新增站点账号" %}
+{% set nav_key = "targets" %}
+{% block body %}
+<div class="page-shell">
+  <section class="page-intro">
+    <div class="eyebrow">Target Account</div>
+    <h2 class="page-title">{{ "编辑站点账号" if target.id else "把一个可执行的签到账号正式接入管理台" }}</h2>
+    <p class="page-subtitle">这里配置的是单个站点账号的完整生命周期，包括所属成员、调度窗口、凭据兜底、Cookie 续命和站点专属参数。</p>
+  </section>
+
+  <form method="post" class="page-shell">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">基础信息</h3>
+          <p class="card-subtitle">先把账号归属和站点类型定下来，后面的配置会围绕它展开。</p>
+        </div>
+      </div>
+      <div class="section-block">
+        <div class="field-grid">
+          <div class="field field-span-4">
+            <label>所属成员</label>
+            <select name="member_id" required>
+              <option value="">请选择成员</option>
+              {% for member in members %}
+              <option value="{{ member.id }}" {% if target.member_id|string == member.id|string %}selected{% endif %}>{{ member.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field field-span-4">
+            <label>站点</label>
+            <select name="site" id="site-select" required>
+              {% for site_key, site_def in site_defs.items() %}
+              <option value="{{ site_key }}" {% if target.site == site_key %}selected{% endif %}>{{ site_def.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field field-span-4">
+            <label>显示名</label>
+            <input name="display_name" id="display-name-input" value="{{ target.display_name }}">
+            <p class="field-hint">建议填一个你一眼能认出来的名字。留空时可手动继承站点名。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">运行策略</h3>
+          <p class="card-subtitle">控制这个账号是否启用、是否参与定时以及是否执行后推送消息。</p>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="toggle-grid">
+          <div class="toggle-card"><label><input type="checkbox" name="enabled" {% if target.enabled %}checked{% endif %}> 启用账号</label></div>
+          <div class="toggle-card"><label><input type="checkbox" name="schedule_enabled" {% if target.schedule_enabled %}checked{% endif %}> 参与定时调度</label></div>
+          <div class="toggle-card"><label><input type="checkbox" name="notify_enabled" {% if target.notify_enabled %}checked{% endif %}> 执行后推送企业微信</label></div>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="field-grid">
+          <div class="field field-span-4">
+            <label>开始时间</label>
+            <input type="time" name="schedule_start" value="{{ target.schedule_start }}">
+          </div>
+          <div class="field field-span-4">
+            <label>结束时间</label>
+            <input type="time" name="schedule_end" value="{{ target.schedule_end }}">
+          </div>
+          <div class="field field-span-4">
+            <label>随机抖动秒数</label>
+            <input type="number" min="0" name="jitter_seconds" value="{{ target.jitter_seconds }}">
+          </div>
+        </div>
+        <p class="field-hint" style="margin-top:12px;">建议把不同站点或不同成员错开时间窗口，这样更稳，也更方便你排查失败原因。</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">账号凭据与兜底信息</h3>
+          <p class="card-subtitle">自动续命能用就优先用，静态 Cookie 建议保留作兜底。下面的提示会随站点切换。</p>
+        </div>
+        <span class="pill accent" id="site-helper-pill">当前站点：{{ site_defs[target.site].label if target.site in site_defs else target.site }}</span>
+      </div>
+
+      <div class="section-block">
+        <p class="field-hint" id="site-helper-text">52、哔哩哔哩、米游社建议保留一份静态 Cookie 兜底；MT 主要依赖账号密码。</p>
+        <div class="field-grid" style="margin-top:14px;">
+          <div class="field field-span-6">
+            <label>用户名</label>
+            <input name="username" value="{{ target.secrets.username if target.secrets else '' }}">
+            <p class="field-hint">MT 必填；52 可选，主要用于账号密码兜底。</p>
+          </div>
+          <div class="field field-span-6">
+            <label>密码</label>
+            <input name="password" value="{{ target.secrets.password if target.secrets else '' }}">
+            <p class="field-hint">MT 必填；52 仅在你需要额外兜底时填写。</p>
+          </div>
+          <div class="field field-span-12">
+            <label>静态 Cookie / 兜底 Cookie</label>
+            <textarea name="static_cookie">{{ target.secrets.static_cookie if target.secrets else '' }}</textarea>
+            <p class="field-hint">用于 52、哔哩哔哩、米游社的静态兜底。你也可以在首页点“打开会话”去做运行时 Cookie 续命。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">站点专属配置</h3>
+          <p class="card-subtitle">不同站点的参数不同，下面会按类型分区展示。</p>
+        </div>
+      </div>
+
+      <div class="section-block" data-site-scope="mihoyo">
+        <h3>米游社</h3>
+        <p class="field-hint">多游戏用英文逗号分隔，按你实际需要启用。</p>
+        <div class="field-grid" style="margin-top:14px;">
+          <div class="field field-span-12">
+            <label>启用游戏</label>
+            <input name="mihoyo_games" value="{{ target.config.mihoyo_games if target.config else 'genshin' }}">
+            <p class="field-hint">例如：<code>genshin,honkai_sr,zzz</code></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block" data-site-scope="bilibili">
+        <h3>哔哩哔哩</h3>
+        <p class="field-hint">观看、分享、投币都可以按账号习惯独立控制。</p>
+        <div class="field-grid" style="margin-top:14px;">
+          <div class="field field-span-6">
+            <label>目标投币数</label>
+            <input type="number" min="0" name="target_daily_coins" value="{{ target.config.target_daily_coins if target.config else 5 }}">
+          </div>
+          <div class="field field-span-6">
+            <label>保留硬币数</label>
+            <input type="number" min="0" name="protected_coins" value="{{ target.config.protected_coins if target.config else 0 }}">
+          </div>
+        </div>
+        <div class="toggle-grid" style="margin-top:14px;">
+          <div class="toggle-card"><label><input type="checkbox" name="watch_enabled" {% if target.config is none or target.config.watch_enabled %}checked{% endif %}> 开启观看</label></div>
+          <div class="toggle-card"><label><input type="checkbox" name="share_enabled" {% if target.config is none or target.config.share_enabled %}checked{% endif %}> 开启分享</label></div>
+          <div class="toggle-card"><label><input type="checkbox" name="coin_enabled" {% if target.config is none or target.config.coin_enabled %}checked{% endif %}> 开启投币</label></div>
+        </div>
+      </div>
+
+      <div class="section-block" data-site-scope="binmt 52pojie">
+        <h3>论坛类站点说明</h3>
+        <p class="field-hint">MT 管理器论坛和 52 破解更偏向“账号凭据 + Cookie 兜底”的思路。52 还支持通过浏览器会话做人工续命。</p>
+      </div>
+    </section>
+
+    <section class="card danger-zone">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">保存与危险操作</h3>
+          <p class="card-subtitle">建议先保存，再去首页执行或打开浏览器会话。</p>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button type="submit">保存站点账号</button>
+        <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+        {% if target.id %}
+        <button type="submit" class="warn" formaction="{{ url_for('delete_target', target_id=target.id) }}" formmethod="post" onclick="return confirm('确认删除站点账号“{{ target.display_name or target.site }}”吗？');">删除站点账号</button>
+        {% endif %}
+      </div>
+    </section>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const siteSelect = document.getElementById('site-select');
+    const displayNameInput = document.getElementById('display-name-input');
+    const helperText = document.getElementById('site-helper-text');
+    const helperPill = document.getElementById('site-helper-pill');
+    if (!siteSelect) return;
+
+    const siteNotes = {
+      binmt: 'MT 管理器论坛主要依赖账号密码。Cookie 一般不是主路径，建议先确保用户名和密码可用。',
+      mihoyo: '米游社建议同时保留静态 Cookie 兜底，并在需要时通过浏览器登录会话做运行时续命。',
+      bilibili: '哔哩哔哩建议保留静态 Cookie 兜底，同时按账号情况配置观看、分享和投币策略。',
+      '52pojie': '52 破解建议同时保留静态 Cookie 和账号密码兜底，遇到验证页时可人工打开浏览器会话处理。'
+    };
+
+    function syncSiteBlocks() {
+      const site = siteSelect.value;
+      const label = siteSelect.options[siteSelect.selectedIndex]?.text || site;
+      if (helperPill) helperPill.textContent = `当前站点：${label}`;
+      if (helperText) helperText.textContent = siteNotes[site] || '请按当前站点填写对应的凭据和配置。';
+
+      document.querySelectorAll('[data-site-scope]').forEach((node) => {
+        const scopes = (node.getAttribute('data-site-scope') || '').split(/\s+/).filter(Boolean);
+        node.style.display = scopes.includes(site) ? '' : 'none';
+      });
+    }
+
+    siteSelect.addEventListener('change', () => {
+      const chosenLabel = siteSelect.options[siteSelect.selectedIndex]?.text || '';
+      if (displayNameInput && !displayNameInput.value.trim()) {
+        displayNameInput.value = chosenLabel;
+      }
+      syncSiteBlocks();
+    });
+
+    syncSiteBlocks();
+  })();
+</script>
+{% endblock %}

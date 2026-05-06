@@ -1,0 +1,25 @@
+$:
+  vscode:
+    - runner:
+        cpus: 1
+      services:
+        - vscode
+        - docker
+
+.github-sync: &github-sync
+  runner:
+    cpus: 1
+  env:
+    GITHUB_REPO: https://github.com/Womsxd/MihoyoBBSTools.git
+  stages:
+    - name: sync
+      script: |
+        git clone --bare ${GITHUB_REPO} syncRepo
+        cd syncRepo
+        git push --prune ${CNB_REPO_URL_HTTPS} '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*'
+
+master:
+  "crontab: 0 6 * * *": 
+    - *github-sync
+  web_trigger_sync: 
+    - *github-sync

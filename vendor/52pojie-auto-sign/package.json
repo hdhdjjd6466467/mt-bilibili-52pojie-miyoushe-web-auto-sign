@@ -1,0 +1,22 @@
+{
+  "name": "52pojie-auto-sign",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright automation for 52pojie login and daily sign-in.",
+  "scripts": {
+    "inspect": "node scripts/inspect-login.mjs",
+    "import-cookie": "node scripts/import-cookie.mjs",
+    "signin:assist": "node scripts/signin-assist.mjs",
+    "signin": "node scripts/signin.mjs",
+    "signin:cron": "bash ./run-cron.sh",
+    "signin:headed": "DISPLAY=:1 node scripts/signin.mjs",
+    "signin:assist:headed": "DISPLAY=:1 node scripts/signin-assist.mjs",
+    "import-cookie:headed": "DISPLAY=:1 node scripts/import-cookie.mjs",
+    "inspect:headed": "DISPLAY=:1 node scripts/inspect-login.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "playwright": "^1.59.1"
+  }
+}

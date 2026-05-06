@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% set page_title = "编辑成员" if member else "新增成员" %}
+{% set nav_key = "members" %}
+{% block body %}
+<div class="page-shell">
+  <section class="page-intro">
+    <div class="eyebrow">Member Profile</div>
+    <h2 class="page-title">{{ "编辑成员资料" if member else "先建成员，再给成员挂站点账号" }}</h2>
+    <p class="page-subtitle">成员是你这套后台的一级管理对象。后续无论是做多人签到、分组推送还是权限拆分，成员都是最稳的承载单元。</p>
+  </section>
+
+  <form method="post" class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">{{ "成员信息" if member else "创建一个新成员" }}</h3>
+        <p class="card-subtitle">名称建议直接用你自己能辨识的昵称、账号主人或使用人名称。</p>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="field-grid">
+        <div class="field field-span-8">
+          <label>成员名称</label>
+          <input name="name" required value="{{ member.name if member else '' }}">
+          <p class="field-hint">这个名称会显示在首页、运行记录和企业微信推送里。</p>
+        </div>
+        <div class="field field-span-4">
+          <span class="label">状态</span>
+          <div class="toggle-card">
+            <label><input type="checkbox" name="enabled" {% if member is none or member.enabled %}checked{% endif %}> 启用这个成员</label>
+          </div>
+          <p class="field-hint">停用成员后，该成员下的账号你可以保留，但建议同步停用对应站点账号。</p>
+        </div>
+        <div class="field field-span-12">
+          <label>备注</label>
+          <textarea name="remark">{{ member.remark if member else '' }}</textarea>
+          <p class="field-hint">例如设备归属、账号说明、特殊处理方式或注意事项。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar" style="margin-top:18px;">
+      <button type="submit">保存成员</button>
+      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+      {% if member %}
+      <button type="submit" class="warn" formaction="{{ url_for('delete_member', member_id=member.id) }}" formmethod="post" onclick="return confirm('确认删除成员“{{ member.name }}”吗？会一并删除它下面的站点账号和运行记录。');">删除成员</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

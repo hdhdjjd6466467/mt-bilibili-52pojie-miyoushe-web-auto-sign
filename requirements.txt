@@ -1,0 +1,5 @@
+Flask>=3.0,<4
+waitress>=3.0,<4
+cryptography>=42,<46
+ddddocr>=1.5,<2
+Pillow>=10,<12

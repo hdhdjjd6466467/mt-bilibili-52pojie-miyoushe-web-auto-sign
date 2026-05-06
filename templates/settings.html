@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% set page_title = "系统设置" %}
+{% set nav_key = "settings" %}
+{% block body %}
+<div class="page-shell">
+  <section class="page-intro">
+    <div class="eyebrow">Settings</div>
+    <h2 class="page-title">把后台品牌、通知出口和管理员安全策略，一次配完整。</h2>
+    <p class="page-subtitle">这里管理的是整个控制台的基础配置，不动签到核心逻辑，但会直接影响你日常操作体验和消息通知出口。</p>
+  </section>
+
+  <form method="post" class="grid two">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">管理台品牌与推送</h3>
+          <p class="card-subtitle">这些配置决定后台呈现方式，以及执行结果发往哪里。</p>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <div class="field-grid">
+          <div class="field field-span-12">
+            <label>管理台标题</label>
+            <input name="app_title" value="{{ settings.get('app_title', 'MT / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理台') }}">
+            <p class="field-hint">显示在后台页头和浏览器标题里，建议用一个你自己一看就知道用途的名称。</p>
+          </div>
+          <div class="field field-span-12">
+            <label>企业微信 Webhook</label>
+            <textarea name="wecom_webhook_url">{{ settings.get('wecom_webhook_url', '') }}</textarea>
+            <p class="field-hint">填完整的群机器人 webhook。开启“执行后推送企业微信”的账号，在手动执行和定时执行后都会发送结果摘要。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block soft" style="margin-top:16px;">
+        <h3>推送说明</h3>
+        <p class="muted tiny">建议只接一个稳定的群机器人入口。等后面做多人管理时，再按成员或站点扩展成多路推送。</p>
+      </div>
+    </section>
+
+    <section class="card danger-zone">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">管理员安全</h3>
+          <p class="card-subtitle">修改后台管理员账号与密码，不影响已经接入的签到数据。</p>
+        </div>
+      </div>
+
+      <div class="section-block" style="background:rgba(255,255,255,0.84);">
+        <div class="field-grid">
+          <div class="field field-span-12">
+            <label>管理员账号</label>
+            <input name="admin_username" value="{{ settings.get('admin_username', '') }}">
+            <p class="field-hint">当前登录标识。修改后，下次登录需要使用新的管理员账号。</p>
+          </div>
+          <div class="field field-span-12">
+            <label>修改后台密码</label>
+            <input type="password" name="new_password" placeholder="留空表示不修改">
+            <p class="field-hint">只在需要重置时填写。为空时不会覆盖当前密码。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-block" style="margin-top:16px; background:rgba(255,255,255,0.74);">
+        <h3>安全建议</h3>
+        <p class="muted tiny">这套后台会持有加密后的账号敏感信息。管理员口令建议与其他业务后台区分，不要复用。</p>
+      </div>
+    </section>
+
+    <div class="toolbar">
+      <button type="submit">保存系统设置</button>
+      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

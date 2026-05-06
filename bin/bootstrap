@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+NODE_BIN="${NODE_BIN:-node}"
+NPM_BIN="${NPM_BIN:-npm}"
+PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$ROOT/runtime/ms-playwright}"
+
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "missing python: $PYTHON_BIN" >&2
+  exit 1
+fi
+
+if ! command -v "$NODE_BIN" >/dev/null 2>&1; then
+  echo "missing node: $NODE_BIN" >&2
+  exit 1
+fi
+
+if ! command -v "$NPM_BIN" >/dev/null 2>&1; then
+  echo "missing npm: $NPM_BIN" >&2
+  exit 1
+fi
+
+echo "[1/4] create top-level virtualenv"
+"$PYTHON_BIN" -m venv "$ROOT/.venv"
+"$ROOT/.venv/bin/python" -m pip install --upgrade pip
+"$ROOT/.venv/bin/pip" install -r "$ROOT/requirements.txt"
+
+echo "[2/4] install 52pojie node dependencies"
+mkdir -p "$PLAYWRIGHT_BROWSERS_PATH"
+(
+  cd "$ROOT/vendor/52pojie-auto-sign"
+  "$NPM_BIN" install
+  PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_BROWSERS_PATH" ./node_modules/.bin/playwright install firefox
+)
+
+echo "[3/4] create MihoyoBBSTools virtualenv"
+"$PYTHON_BIN" -m venv "$ROOT/vendor/MihoyoBBSTools/.venv"
+"$ROOT/vendor/MihoyoBBSTools/.venv/bin/python" -m pip install --upgrade pip
+"$ROOT/vendor/MihoyoBBSTools/.venv/bin/pip" install -r "$ROOT/vendor/MihoyoBBSTools/requirements.txt"
+
+echo "[4/4] done"
+echo "web start: $ROOT/bin/start-web"
+echo "dispatch run: $ROOT/bin/dispatch"
+echo "lan url: $ROOT/bin/show-lan-url"

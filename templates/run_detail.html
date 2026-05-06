@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% set page_title = "运行详情" %}
+{% set nav_key = "dashboard" %}
+{% block body %}
+<div class="page-shell">
+  <section class="page-intro">
+    <div class="eyebrow">Execution Trace</div>
+    <h2 class="page-title">一次执行，从结果摘要到原始输出，全部留痕。</h2>
+    <p class="page-subtitle">你可以在这里快速判断它是成功、失败，还是只是需要人工补 Cookie。真正要排问题时，直接往下看原始日志就行。</p>
+    <div class="intro-actions">
+      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">执行摘要</h3>
+        <p class="card-subtitle">[{{ site_defs[run.site].label if run.site in site_defs else run.site }}][{{ run.member_name }}] {{ run.display_name }}</p>
+      </div>
+      <span class="pill {{ 'success' if run.exit_code == 0 else 'danger' }}">{{ "执行成功" if run.exit_code == 0 else "执行失败" }}</span>
+    </div>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <span>触发方式</span>
+        <strong>{{ run.trigger_type }}</strong>
+      </div>
+      <div class="meta-item">
+        <span>开始时间</span>
+        <strong>{{ run.started_at }}</strong>
+      </div>
+      <div class="meta-item">
+        <span>结束时间</span>
+        <strong>{{ run.finished_at }}</strong>
+      </div>
+      <div class="meta-item">
+        <span>结果摘要</span>
+        <strong>{{ run.summary }}</strong>
+      </div>
+    </div>
+    <div class="section-block" style="margin-top:16px;">
+      <h3>日志文件</h3>
+      <p class="muted tiny">{{ run.log_path }}</p>
+    </div>
+  </section>
+
+  <section class="card dark">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">原始输出</h3>
+        <p class="card-subtitle" style="color:rgba(226,232,240,0.72);">保留脚本的完整 stdout / stderr，便于追踪失败原因。</p>
+      </div>
+    </div>
+    <pre>{{ log_text }}</pre>
+  </section>
+</div>
+{% endblock %}

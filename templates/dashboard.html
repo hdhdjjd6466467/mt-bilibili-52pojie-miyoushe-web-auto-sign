@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% set page_title = "控制台" %}
+{% set nav_key = "dashboard" %}
+{% block body %}
+<div class="page-shell">
+  <section class="page-intro">
+    <div class="eyebrow">Operations Console</div>
+    <h2 class="page-title">把签到任务、账号状态和运行结果，收拢到一个真正能管的后台里。</h2>
+    <p class="page-subtitle">这套面板专门给多站点、多成员和多账号场景设计。你可以在这里看整体运行健康度、处理失败账号、人工触发重跑，也能顺手打开会话做 Cookie 续命。</p>
+    <div class="intro-actions">
+      <a class="btn" href="{{ url_for('target_form') }}">新增站点账号</a>
+      <a class="btn secondary" href="{{ url_for('member_form') }}">新增成员</a>
+      <a class="btn ghost" href="{{ url_for('settings_view') }}">配置推送与后台设置</a>
+    </div>
+  </section>
+
+  <section class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">成员总数</div>
+      <div class="metric-value">{{ stats.member_total }}</div>
+      <div class="metric-note">其中启用 {{ stats.member_active }} 个，已沉淀成可管理的账号池。</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">站点账号</div>
+      <div class="metric-value">{{ stats.target_total }}</div>
+      <div class="metric-note">启用 {{ stats.target_active }} 个，参与定时 {{ stats.target_scheduled }} 个。</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">最近运行成功率</div>
+      <div class="metric-value">{{ stats.run_success_rate }}%</div>
+      <div class="metric-note">最近 30 次中成功 {{ stats.run_success }} 次，失败 {{ stats.run_failed }} 次。</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">推送覆盖</div>
+      <div class="metric-value">{{ stats.target_notify }}</div>
+      <div class="metric-note">已有 {{ stats.target_notify }} 个账号在执行后会推送到企业微信。</div>
+    </div>
+  </section>
+
+  {% if stats.site_cards %}
+  <section class="card soft">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">站点分布</h3>
+        <p class="card-subtitle">按站点快速看账号规模和参与定时的覆盖情况。</p>
+      </div>
+    </div>
+    <div class="site-grid">
+      {% for item in stats.site_cards %}
+      <a class="site-card" href="{{ url_for('dashboard', site=item.site) }}#targets-section">
+        <span class="pill brand">{{ item.label }}</span>
+        <strong>{{ item.count }} 个账号</strong>
+        <p>启用 {{ item.active_count }} 个，参与定时 {{ item.scheduled_count }} 个。</p>
+        <div class="site-card-action">查看这个站点的账号</div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="grid two">
+    <div class="card anchor-section" id="members-section">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">成员概览</h3>
+          <p class="card-subtitle">每个成员都能挂多个站点账号，适合你后面扩成多人管理。</p>
+        </div>
+        <a class="btn secondary" href="{{ url_for('member_form') }}">新增成员</a>
+      </div>
+
+      {% if members %}
+      <div class="stack">
+        {% for member in members %}
+        <div class="list-row">
+          <div class="list-row-head">
+            <div>
+              <h4 class="list-row-title">{{ member.name }}</h4>
+              <div class="list-row-meta">{{ member.remark or "暂无备注" }}</div>
+            </div>
+            <span class="pill {{ 'success' if member.enabled else 'neutral' }}">{{ "启用中" if member.enabled else "已停用" }}</span>
+          </div>
+          <div class="list-row-meta">已绑定 {{ member.target_count }} 个站点账号。</div>
+          <div class="inline-actions">
+            <a class="btn ghost" href="{{ url_for('dashboard', member_id=member.id) }}#targets-section">查看账号</a>
+            <a class="btn secondary" href="{{ url_for('member_form', member_id=member.id) }}">编辑成员</a>
+            <a class="btn ghost" href="{{ url_for('target_form', member_id=member.id) }}">为他新增账号</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        还没有成员。先建成员，再往下面挂 MT、米游社、B 站和 52 的站点账号。
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card anchor-section" id="runs-section">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">最近运行</h3>
+          <p class="card-subtitle">优先盯住失败项和需要续命的 Cookie 账号。</p>
+        </div>
+        <span class="pill accent">最近 30 条</span>
+      </div>
+
+      {% if runs %}
+      <div class="stack">
+        {% for run in runs[:10] %}
+        <div class="list-row">
+          <div class="list-row-head">
+            <div>
+              <div class="inline-actions" style="margin-bottom:8px;">
+                <a class="pill brand" href="{{ url_for('dashboard', site=run.site) }}#runs-section">{{ site_defs[run.site].label if run.site in site_defs else run.site }}</a>
+                <span class="pill neutral">{{ run.trigger_type }}</span>
+                <a class="pill {{ 'success' if run.exit_code == 0 else 'danger' }}" href="{{ url_for('dashboard', run_status='success' if run.exit_code == 0 else 'failed') }}#runs-section">{{ "成功" if run.exit_code == 0 else "失败" }}</a>
+              </div>
+              <h4 class="list-row-title"><a class="subtle-link" href="{{ url_for('run_detail', run_id=run.id) }}">[{{ run.member_name }}] {{ run.display_name }}</a></h4>
+              <div class="list-row-meta">{{ run.summary }}</div>
+            </div>
+            <div class="list-row-meta">{{ run.finished_at }}</div>
+          </div>
+          <div class="inline-actions">
+            <a class="btn secondary" href="{{ url_for('run_detail', run_id=run.id) }}">查看详情</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state">
+        还没有运行记录。你可以先手动执行一个账号，确认整套链路跑通。
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card anchor-section" id="targets-section">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">站点账号总览</h3>
+        <p class="card-subtitle">所有可执行对象都集中在这里，支持快速编辑、手动执行、登录续命和删除。</p>
+      </div>
+      <a class="btn secondary" href="{{ url_for('target_form') }}">新增站点账号</a>
+    </div>
+
+    <form class="filter-bar" method="get" action="{{ url_for('dashboard') }}">
+      <div class="filter-grid">
+        <div class="field">
+          <label>按站点筛选</label>
+          <select name="site">
+            <option value="">全部站点</option>
+            {% for site_key, site_def in site_defs.items() %}
+            <option value="{{ site_key }}" {% if filters.site == site_key %}selected{% endif %}>{{ site_def.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>按成员筛选</label>
+          <select name="member_id">
+            <option value="">全部成员</option>
+            {% for member in members %}
+            <option value="{{ member.id }}" {% if filters.member_id == member.id|string %}selected{% endif %}>{{ member.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>运行结果</label>
+          <select name="run_status">
+            <option value="">全部结果</option>
+            <option value="success" {% if filters.run_status == 'success' %}selected{% endif %}>只看成功</option>
+            <option value="failed" {% if filters.run_status == 'failed' %}selected{% endif %}>只看失败</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="label">附加条件</span>
+          <div class="toggle-card">
+            <label><input type="checkbox" name="notify_only" value="1" {% if filters.notify_only %}checked{% endif %}> 仅看已启用企业微信推送</label>
+          </div>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="secondary">应用筛选</button>
+        {% if filters.has_filters %}
+        <a class="btn ghost" href="{{ url_for('dashboard') }}#targets-section">清空筛选</a>
+        <span class="filter-note">
+          当前已筛出 {{ targets|length }} 个账号，最近运行列表显示 {{ runs|length }} 条匹配结果。
+        </span>
+        {% else %}
+        <span class="filter-note">当前显示全部账号和最近运行。点击上面的站点分布、成员卡片或运行状态也会自动带筛选。</span>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if targets %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>成员 / 站点</th>
+            <th>显示名</th>
+            <th>调度窗口</th>
+            <th>状态</th>
+            <th>最近执行</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for target in targets %}
+          <tr>
+            <td>
+              <div><strong><a class="subtle-link" href="{{ url_for('dashboard', member_id=target.member_id) }}#targets-section">{{ target.member_name }}</a></strong></div>
+              <div class="tiny muted" style="margin-top:6px;">
+                <a class="pill brand" href="{{ url_for('dashboard', site=target.site) }}#targets-section">{{ site_defs[target.site].label if target.site in site_defs else target.site }}</a>
+              </div>
+            </td>
+            <td>
+              <div><strong>{{ target.display_name }}</strong></div>
+              <div class="tiny muted" style="margin-top:8px;">
+                {% if target.notify_enabled %}
+                  <span class="pill accent">企业微信推送</span>
+                {% else %}
+                  <span class="pill neutral">不推送</span>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div><strong>{{ target.schedule_start }} - {{ target.schedule_end }}</strong></div>
+              <div class="tiny muted" style="margin-top:8px;">随机抖动 {{ target.jitter_seconds }} 秒</div>
+            </td>
+            <td>
+              <div class="inline-actions">
+                <span class="pill {{ 'success' if target.enabled else 'neutral' }}">{{ "账号启用" if target.enabled else "账号停用" }}</span>
+                <span class="pill {{ 'accent' if target.schedule_enabled else 'warn' }}">{{ "参与定时" if target.schedule_enabled else "仅手动" }}</span>
+              </div>
+            </td>
+            <td>
+              <div>{{ target.last_run_at or "还未执行" }}</div>
+            </td>
+            <td>
+              <div class="inline-actions">
+                <a class="btn secondary" href="{{ url_for('target_form', target_id=target.id) }}">编辑</a>
+                <form class="inline" method="post" action="{{ url_for('run_target_now', target_id=target.id) }}">
+                  <button type="submit">立即执行</button>
+                </form>
+                {% if target.site in ("52pojie", "bilibili", "mihoyo") %}
+                <form class="inline" method="post" action="{{ url_for('open_session', target_id=target.id) }}">
+                  <button type="submit" class="warn">打开会话</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      还没有站点账号。建议按成员来建，这样后面做多人签到和分组管理会很顺。
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

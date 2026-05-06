@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import ipaddress
+import json
+import os
+import socket
+import subprocess
+import sys
+
+
+DEFAULT_PORT = 18080
+LAN_PREFIXES = ("wlan", "wl", "eth", "en", "br", "bridge", "ap", "usb", "rndis")
+SKIP_PREFIXES = (
+    "lo",
+    "rmnet",
+    "tun",
+    "tap",
+    "dummy",
+    "ifb",
+    "sit",
+    "gre",
+    "ip6",
+    "ovnet",
+)
+
+
+def run_command(argv: list[str]) -> str:
+    completed = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=10)
+    return completed.stdout or ""
+
+
+def is_lan_iface(name: str) -> bool:
+    iface = (name or "").strip().lower()
+    if not iface:
+        return False
+    if iface.startswith(SKIP_PREFIXES):
+        return False
+    return iface.startswith(LAN_PREFIXES)
+
+
+def list_ipv4_entries(port: int) -> list[dict[str, str]]:
+    text = run_command(["ip", "-brief", "addr"])
+    entries: list[dict[str, str]] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        iface = parts[0].split("@", 1)[0]
+        for value in parts[2:]:
+            if "/" not in value or "." not in value:
+                continue
+            ip_text = value.split("/", 1)[0].strip()
+            try:
+                ip_obj = ipaddress.ip_address(ip_text)
+            except ValueError:
+                continue
+            if ip_obj.version != 4 or ip_obj.is_loopback or not ip_obj.is_private:
+                continue
+            entries.append(
+                {
+                    "iface": iface,
+                    "ip": ip_text,
+                    "url": f"http://{ip_text}:{port}/",
+                    "kind": "lan" if is_lan_iface(iface) else "other",
+                }
+            )
+    return entries
+
+
+def port_is_listening(port: int) -> bool:
+    completed = subprocess.run(
+        ["ss", "-ltn"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    needle = f":{port}"
+    return any(needle in line for line in (completed.stdout or "").splitlines())
+
+
+def parse_port(argv: list[str]) -> int:
+    port = int(os.environ.get("SIGNADMIN_PORT", str(DEFAULT_PORT)).strip() or str(DEFAULT_PORT))
+    if "--port" in argv:
+        try:
+            index = argv.index("--port")
+            port = int(argv[index + 1])
+        except (IndexError, ValueError):
+            raise SystemExit("invalid --port value")
+    return port
+
+
+def main() -> int:
+    port = parse_port(sys.argv[1:])
+    entries = list_ipv4_entries(port)
+    lan_entries = [item for item in entries if item["kind"] == "lan"]
+    other_entries = [item for item in entries if item["kind"] != "lan"]
+    hostname = (socket.gethostname() or "").strip() or "unknown"
+    verbose = "--verbose" in sys.argv[1:]
+
+    payload = {
+        "ok": bool(lan_entries),
+        "hostname": hostname,
+        "port": port,
+        "service_listening": port_is_listening(port),
+        "preferred_urls": [item["url"] for item in lan_entries],
+        "fallback_urls": [item["url"] for item in other_entries],
+        "details": entries,
+    }
+
+    if "--json" in sys.argv[1:]:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if payload["ok"] else 1
+
+    if lan_entries:
+        if verbose:
+            print(f"hostname: {hostname}")
+            print(f"web: {'listening' if payload['service_listening'] else 'not-listening'}")
+        print("当前可在局域网打开的网址:")
+        for item in lan_entries:
+            print(item["url"])
+        return 0
+
+    if verbose:
+        print(f"hostname: {hostname}")
+        print(f"web: {'listening' if payload['service_listening'] else 'not-listening'}")
+    print("当前没有检测到可用的局域网接口。")
+    if other_entries:
+        print("以下地址仅作参考，通常不是同一局域网访问入口:")
+        for item in other_entries:
+            print(item["url"])
+    else:
+        print("当前没有任何私有 IPv4 地址。")
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

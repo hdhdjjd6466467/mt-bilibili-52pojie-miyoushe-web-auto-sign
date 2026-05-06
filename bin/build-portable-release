@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VERSION="${1:-v1.0.0}"
+ARCH="$(uname -m)"
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+SLUG="mt-bilibili-52pojie-miyoushe-web-auto-sign"
+APP_DIR="${SLUG}-${VERSION}-${OS}-${ARCH}"
+DIST_DIR="$ROOT/dist"
+WORK_DIR="$DIST_DIR/$APP_DIR"
+ARCHIVE_PATH="$DIST_DIR/${APP_DIR}.tar.gz"
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "missing command: $1" >&2
+    exit 1
+  fi
+}
+
+require_cmd python3
+require_cmd tar
+require_cmd node
+require_cmd ldd
+
+rm -rf "$WORK_DIR"
+mkdir -p "$DIST_DIR"
+
+echo "[1/7] stage project files"
+mkdir -p "$WORK_DIR"
+(
+  cd "$ROOT"
+  tar \
+    --exclude='./.git' \
+    --exclude='./.venv' \
+    --exclude='./data' \
+    --exclude='./logs' \
+    --exclude='./state' \
+    --exclude='./dist' \
+    --exclude='./runtime' \
+    --exclude='./vendor/52pojie-auto-sign/node_modules' \
+    --exclude='./vendor/MihoyoBBSTools/.venv' \
+    -cf - .
+) | (
+  cd "$WORK_DIR"
+  tar -xf -
+)
+
+mkdir -p "$WORK_DIR/data" "$WORK_DIR/logs" "$WORK_DIR/state"
+
+echo "[2/7] build top-level virtualenv"
+python3 -m venv --copies "$WORK_DIR/.venv"
+"$WORK_DIR/.venv/bin/python" -m pip install --upgrade pip
+"$WORK_DIR/.venv/bin/pip" install -r "$WORK_DIR/requirements.txt"
+
+echo "[3/7] build MihoyoBBSTools virtualenv"
+python3 -m venv --copies "$WORK_DIR/vendor/MihoyoBBSTools/.venv"
+"$WORK_DIR/vendor/MihoyoBBSTools/.venv/bin/python" -m pip install --upgrade pip
+"$WORK_DIR/vendor/MihoyoBBSTools/.venv/bin/pip" install -r "$WORK_DIR/vendor/MihoyoBBSTools/requirements.txt"
+
+echo "[4/7] copy 52pojie node modules"
+mkdir -p "$WORK_DIR/vendor/52pojie-auto-sign/node_modules"
+cp -a "$ROOT/vendor/52pojie-auto-sign/node_modules/." "$WORK_DIR/vendor/52pojie-auto-sign/node_modules/"
+
+echo "[5/7] copy bundled node runtime"
+NODE_BIN_SOURCE="$(command -v node)"
+NODE_RUNTIME_DIR="$WORK_DIR/runtime/node"
+mkdir -p "$NODE_RUNTIME_DIR/bin" "$NODE_RUNTIME_DIR/lib"
+cp -L "$NODE_BIN_SOURCE" "$NODE_RUNTIME_DIR/bin/node"
+ldd "$NODE_BIN_SOURCE" | awk '/=> \// {print $3}' | while read -r lib; do
+  base="$(basename "$lib")"
+  case "$base" in
+    libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|ld-linux*.so.*)
+      continue
+      ;;
+  esac
+  cp -L "$lib" "$NODE_RUNTIME_DIR/lib/$base"
+done
+
+echo "[6/7] copy Playwright Firefox runtime"
+BROWSER_SOURCE=""
+if [[ -d "$ROOT/runtime/ms-playwright" ]] && find "$ROOT/runtime/ms-playwright" -maxdepth 1 -type d -name 'firefox-*' | grep -q .; then
+  BROWSER_SOURCE="$ROOT/runtime/ms-playwright"
+elif [[ -d "$HOME/.cache/ms-playwright" ]] && find "$HOME/.cache/ms-playwright" -maxdepth 1 -type d -name 'firefox-*' | grep -q .; then
+  BROWSER_SOURCE="$HOME/.cache/ms-playwright"
+fi
+
+if [[ -z "$BROWSER_SOURCE" ]]; then
+  echo "missing Playwright Firefox runtime. Run ./bin/bootstrap first." >&2
+  exit 1
+fi
+
+mkdir -p "$WORK_DIR/runtime/ms-playwright"
+find "$BROWSER_SOURCE" -maxdepth 1 -type d \( -name 'firefox-*' -o -name 'ffmpeg-*' \) -print0 | while IFS= read -r -d '' path; do
+  cp -a "$path" "$WORK_DIR/runtime/ms-playwright/"
+done
+if [[ -d "$BROWSER_SOURCE/.links" ]]; then
+  cp -a "$BROWSER_SOURCE/.links" "$WORK_DIR/runtime/ms-playwright/"
+fi
+
+echo "[7/7] write release launchers"
+cat > "$WORK_DIR/start-web.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+"$ROOT/bin/start-web"
+echo
+"$ROOT/bin/status-web" || true
+echo
+"$ROOT/bin/show-lan-url" || true
+SH
+
+cat > "$WORK_DIR/status-web.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/bin/status-web"
+SH
+
+cat > "$WORK_DIR/stop-web.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/bin/stop-web"
+SH
+
+cat > "$WORK_DIR/show-lan-url.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/bin/show-lan-url"
+SH
+
+cat > "$WORK_DIR/run-dispatch.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/bin/dispatch"
+SH
+
+cat > "$WORK_DIR/README-START.txt" <<'TXT'
+MT管理器 / 哔哩哔哩 / 52破解 / 米游社 Web 自动签到管理平台
+
+这是 Linux 便携版，适合直接解压后启动。
+
+使用方式:
+1. 进入解压后的目录
+2. 运行: ./start-web.sh
+3. 浏览器打开脚本输出的局域网地址
+4. 首次访问会进入 /setup，由你自己创建管理员账号和密码
+
+常用命令:
+- ./start-web.sh
+- ./status-web.sh
+- ./stop-web.sh
+- ./show-lan-url.sh
+- ./run-dispatch.sh
+
+默认端口:
+- 18080
+
+如果需要改端口:
+- SIGNADMIN_PORT=18081 ./start-web.sh
+
+说明:
+- 当前便携版包含 Web 依赖、52 所需 Firefox 运行时、MihoyoBBSTools 运行环境
+- 浏览器登录会话功能在没有桌面环境时，建议配合 Xvfb 或 VNC 使用
+TXT
+
+chmod +x \
+  "$WORK_DIR/start-web.sh" \
+  "$WORK_DIR/status-web.sh" \
+  "$WORK_DIR/stop-web.sh" \
+  "$WORK_DIR/show-lan-url.sh" \
+  "$WORK_DIR/run-dispatch.sh"
+
+rm -f "$ARCHIVE_PATH"
+tar -C "$DIST_DIR" -czf "$ARCHIVE_PATH" "$APP_DIR"
+
+echo
+echo "release dir: $WORK_DIR"
+echo "archive: $ARCHIVE_PATH"
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum "$ARCHIVE_PATH"
+fi
