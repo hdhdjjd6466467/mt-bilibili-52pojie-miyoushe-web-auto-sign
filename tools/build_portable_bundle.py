@@ -205,7 +205,7 @@ $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $Root 'runtime\ms-playwright'
 """
 
     ps_scripts = {
-        "start-web.ps1": rf"""param([int]$Port = 18080)
+        "start-web.ps1": rf"""param([int]$Port = $(if ($env:SIGNADMIN_PORT) {{ [int]$env:SIGNADMIN_PORT }} else {{ 18080 }}))
 $ErrorActionPreference = 'Stop'
 {env_block}
 $PidFile = Join-Path $Root 'state\web.pid'
@@ -242,9 +242,9 @@ if (-not (Test-Path $PidFile)) {
   Write-Host 'stopped'
   exit 1
 }
-$Pid = (Get-Content $PidFile -Raw).Trim()
-if ($Pid -and (Get-Process -Id ([int]$Pid) -ErrorAction SilentlyContinue)) {
-  Write-Host "running pid=$Pid"
+$WebPid = (Get-Content $PidFile -Raw).Trim()
+if ($WebPid -and (Get-Process -Id ([int]$WebPid) -ErrorAction SilentlyContinue)) {
+  Write-Host "running pid=$WebPid"
   exit 0
 }
 Write-Host 'stale pid file'
@@ -257,9 +257,9 @@ if (-not (Test-Path $PidFile)) {
   Write-Host 'auto-sign web not running'
   exit 0
 }
-$Pid = (Get-Content $PidFile -Raw).Trim()
-if ($Pid) {
-  Stop-Process -Id ([int]$Pid) -Force
+$WebPid = (Get-Content $PidFile -Raw).Trim()
+if ($WebPid) {
+  Stop-Process -Id ([int]$WebPid) -Force
 }
 Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
 Write-Host 'auto-sign web stopped'
@@ -268,7 +268,7 @@ Write-Host 'auto-sign web stopped'
 {env_block}
 & $Python -m signadmin.dispatch
 """,
-        "show-lan-url.ps1": r"""param([int]$Port = 18080)
+        "show-lan-url.ps1": r"""param([int]$Port = $(if ($env:SIGNADMIN_PORT) { [int]$env:SIGNADMIN_PORT } else { 18080 }))
 $ErrorActionPreference = 'Stop'
 $Entries = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
   $_.IPAddress -ne '127.0.0.1' -and
@@ -346,7 +346,7 @@ def test_package(extracted_dir: Path, platform_key: str) -> None:
     env["SIGNADMIN_PORT"] = str(port)
 
     if PLATFORMS[platform_key]["family"] == "windows":
-        subprocess.run(["cmd", "/c", "start-web.bat"], cwd=str(extracted_dir), env=env, check=True)
+        subprocess.run(["cmd", "/c", "start-web.bat", str(port)], cwd=str(extracted_dir), env=env, check=True)
         try:
             wait_for_setup(port)
         finally:
