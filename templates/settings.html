@@ -6,14 +6,14 @@
   <section class="page-intro">
     <div class="eyebrow">Settings</div>
     <h2 class="page-title">把后台品牌、通知出口和管理员安全策略，一次配完整。</h2>
-    <p class="page-subtitle">这里管理的是整个控制台的基础配置，不动签到核心逻辑，但会直接影响你日常操作体验和消息通知出口。</p>
+    <p class="page-subtitle">这里管理的是整个中控台的基础配置，不动签到核心逻辑，但会直接影响你日常操作体验和消息通知出口。</p>
   </section>
 
   <form method="post" class="grid two">
     <section class="card">
       <div class="card-header">
         <div>
-          <h3 class="card-title">管理台品牌与推送</h3>
+          <h3 class="card-title">中控台品牌与推送</h3>
           <p class="card-subtitle">这些配置决定后台呈现方式，以及执行结果发往哪里。</p>
         </div>
       </div>
@@ -21,8 +21,8 @@
       <div class="section-block">
         <div class="field-grid">
           <div class="field field-span-12">
-            <label>管理台标题</label>
-            <input name="app_title" value="{{ settings.get('app_title', 'MT / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理台') }}">
+            <label>中控台标题</label>
+            <input name="app_title" value="{{ settings.get('app_title', 'SignAdmin 多站签到中控台') }}">
             <p class="field-hint">显示在后台页头和浏览器标题里，建议用一个你自己一看就知道用途的名称。</p>
           </div>
           <div class="field field-span-12">
@@ -70,7 +70,7 @@
 
     <div class="toolbar">
       <button type="submit">保存系统设置</button>
-      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回中控台</a>
     </div>
   </form>
 </div>

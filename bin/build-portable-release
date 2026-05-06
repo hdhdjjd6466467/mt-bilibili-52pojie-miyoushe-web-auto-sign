@@ -139,7 +139,9 @@ exec "$ROOT/bin/dispatch"
 SH
 
 cat > "$WORK_DIR/README-START.txt" <<'TXT'
-MT管理器 / 哔哩哔哩 / 52破解 / 米游社 Web 自动签到管理平台
+SignAdmin 多站签到中控台
+
+MT管理器 / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理平台
 
 这是 Linux 便携版，适合直接解压后启动。
 

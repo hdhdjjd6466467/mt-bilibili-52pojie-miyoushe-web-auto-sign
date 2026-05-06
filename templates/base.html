@@ -680,7 +680,7 @@
           <div class="brand-mark">签</div>
           <div class="brand-copy">
             <h1>{{ app_title }}</h1>
-            <p>多账号签到调度、Cookie 续命、企业微信推送，都在一套后台里统一管理。</p>
+            <p>多账号签到调度、Cookie 续命、企业微信推送，都在一套中控台里统一管理。</p>
           </div>
         </div>
         <div class="header-side">
@@ -693,7 +693,7 @@
       </header>
 
       <nav class="nav-strip">
-        <a class="nav-link {{ 'active' if endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">控制台</a>
+        <a class="nav-link {{ 'active' if endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">中控台</a>
         <a class="nav-link {{ 'active' if endpoint == 'members' else '' }}" href="{{ url_for('dashboard') }}#members-section">成员管理</a>
         <a class="nav-link {{ 'active' if endpoint == 'targets' else '' }}" href="{{ url_for('dashboard') }}#targets-section">站点账号</a>
         <a class="nav-link {{ 'active' if endpoint == 'settings' else '' }}" href="{{ url_for('settings_view') }}">系统配置</a>

@@ -19,7 +19,7 @@ class TargetDefaults:
 
 
 DEFAULTS = TargetDefaults()
-DEFAULT_APP_TITLE = "MT / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理台"
+DEFAULT_APP_TITLE = "SignAdmin 多站签到中控台"
 
 
 def _bool(value: Any) -> int:
@@ -102,7 +102,11 @@ def init_db() -> None:
     with connect() as conn:
         conn.executescript(schema)
         app_title = _get_setting(conn, "app_title")
-        if not app_title or app_title in {"签到管理台", "签到控制台"}:
+        if not app_title or app_title in {
+            "签到管理台",
+            "签到控制台",
+            "MT / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理台",
+        }:
             _set_setting(conn, "app_title", DEFAULT_APP_TITLE)
         if not _get_setting(conn, "wecom_webhook_url"):
             _set_setting(conn, "wecom_webhook_url", "")

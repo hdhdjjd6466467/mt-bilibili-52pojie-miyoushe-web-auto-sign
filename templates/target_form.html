@@ -5,7 +5,7 @@
 <div class="page-shell">
   <section class="page-intro">
     <div class="eyebrow">Target Account</div>
-    <h2 class="page-title">{{ "编辑站点账号" if target.id else "把一个可执行的签到账号正式接入管理台" }}</h2>
+    <h2 class="page-title">{{ "编辑站点账号" if target.id else "把一个可执行的签到账号正式接入中控台" }}</h2>
     <p class="page-subtitle">这里配置的是单个站点账号的完整生命周期，包括所属成员、调度窗口、凭据兜底、Cookie 续命和站点专属参数。</p>
   </section>
 
@@ -166,7 +166,7 @@
       </div>
       <div class="toolbar">
         <button type="submit">保存站点账号</button>
-        <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+        <a class="btn secondary" href="{{ url_for('dashboard') }}">返回中控台</a>
         {% if target.id %}
         <button type="submit" class="warn" formaction="{{ url_for('delete_target', target_id=target.id) }}" formmethod="post" onclick="return confirm('确认删除站点账号“{{ target.display_name or target.site }}”吗？');">删除站点账号</button>
         {% endif %}

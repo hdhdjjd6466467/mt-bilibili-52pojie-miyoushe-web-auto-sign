@@ -41,7 +41,7 @@
 
     <div class="toolbar" style="margin-top:18px;">
       <button type="submit">保存成员</button>
-      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回控制台</a>
+      <a class="btn secondary" href="{{ url_for('dashboard') }}">返回中控台</a>
       {% if member %}
       <button type="submit" class="warn" formaction="{{ url_for('delete_member', member_id=member.id) }}" formmethod="post" onclick="return confirm('确认删除成员“{{ member.name }}”吗？会一并删除它下面的站点账号和运行记录。');">删除成员</button>
       {% endif %}

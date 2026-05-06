@@ -174,7 +174,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 exec "$ROOT/bin/show-lan-url"
 """,
-        "README-START.txt": """MT管理器 / 哔哩哔哩 / 52破解 / 米游社 Web 自动签到管理平台
+        "README-START.txt": """SignAdmin 多站签到中控台
+
+MT管理器 / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理平台
 
 使用方式:
 1. 解压压缩包
@@ -296,7 +298,7 @@ exit 1
         "stop-web.bat": "@echo off\r\npowershell -ExecutionPolicy Bypass -File \"%~dp0windows\\stop-web.ps1\"\r\n",
         "run-dispatch.bat": "@echo off\r\npowershell -ExecutionPolicy Bypass -File \"%~dp0windows\\run-dispatch.ps1\" %*\r\n",
         "show-lan-url.bat": "@echo off\r\npowershell -ExecutionPolicy Bypass -File \"%~dp0windows\\show-lan-url.ps1\" %*\r\n",
-        "README-START.txt": "MT管理器 / 哔哩哔哩 / 52破解 / 米游社 Web 自动签到管理平台\r\n\r\n使用方式:\r\n1. 解压压缩包\r\n2. 双击 start-web.bat\r\n3. 浏览器打开脚本输出的局域网地址\r\n4. 首次访问进入 /setup 创建管理员账号和密码\r\n",
+        "README-START.txt": "SignAdmin 多站签到中控台\r\n\r\nMT管理器 / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理平台\r\n\r\n使用方式:\r\n1. 解压压缩包\r\n2. 双击 start-web.bat\r\n3. 浏览器打开脚本输出的局域网地址\r\n4. 首次访问进入 /setup 创建管理员账号和密码\r\n",
     }
 
     for name, content in bat_files.items():

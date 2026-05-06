@@ -31,7 +31,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.value }}
-          name: 一键启动版 ${{ steps.version.outputs.value }} | MT管理器 / 哔哩哔哩 / 52破解 / 米游社 Web 自动签到管理平台
+          name: SignAdmin 多站签到中控台 ${{ steps.version.outputs.value }} 一键启动版 | MT管理器 / 哔哩哔哩 / 52破解 / 米游社 自动签到 Web 管理平台
           body: |
             自动构建并验收通过的便携版发布。
 
